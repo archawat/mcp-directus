@@ -19,6 +19,20 @@ const configSchema = z
 			.array(z.string())
 			.default(['delete-item'])
 			.describe("Disable specific tools by name. Defaults to ['delete-item']"),
+		MAX_SCHEMA_COLLECTIONS: z
+			.string()
+			.optional()
+			.transform((val) => val ? parseInt(val, 10) : 10)
+			.describe('Maximum number of collections to include in schema. Defaults to 10'),
+		MAX_SCHEMA_FIELDS_PER_COLLECTION: z
+			.string()
+			.optional()
+			.transform((val) => val ? parseInt(val, 10) : 20)
+			.describe('Maximum number of fields per collection in schema. Defaults to 20'),
+		SCHEMA_EXCLUDE_COLLECTIONS: z
+			.array(z.string())
+			.default([])
+			.describe('Collections to exclude from schema entirely'),
 		MCP_SYSTEM_PROMPT_ENABLED: z
 			.string()
 			.optional()

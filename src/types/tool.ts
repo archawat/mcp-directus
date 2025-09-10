@@ -11,6 +11,6 @@ export interface ToolDefinition<Params = any> {
 	handler: (
 		directus: Directus,
 		args: Params,
-		ctx: { schema: Schema; baseUrl?: string },
+		ctx?: { schema?: Schema; baseUrl?: string },
 	) => Promise<CallToolResult>;
 }

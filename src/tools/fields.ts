@@ -73,6 +73,36 @@ export const createFieldTool = defineTool('create-field', {
 	}),
 	handler: async (directus, { collection, data }) => {
 		try {
+			// Set default interfaces based on field type if not specified
+			if (!data.meta?.interface) {
+				const defaultInterfaces: Record<string, string> = {
+					'm2o': 'select-dropdown-m2o',
+					'o2m': 'list-o2m',
+					'm2m': 'list-m2m',
+					'string': 'input',
+					'text': 'input-multiline',
+					'integer': 'input',
+					'bigInteger': 'input',
+					'float': 'input',
+					'decimal': 'input',
+					'boolean': 'boolean',
+					'date': 'datetime',
+					'dateTime': 'datetime',
+					'time': 'input',
+					'timestamp': 'datetime',
+					'json': 'input-code',
+					'uuid': 'input',
+				};
+				
+				const defaultInterface = defaultInterfaces[data.type];
+				if (defaultInterface) {
+					data.meta = {
+						...data.meta,
+						interface: defaultInterface,
+					};
+				}
+			}
+			
 			const result = await directus.request(createField(collection, data));
 			return formatSuccessResponse(result);
 		}

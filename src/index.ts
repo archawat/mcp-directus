@@ -4,24 +4,34 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
 	CallToolRequestSchema,
-	GetPromptRequestSchema,
-	ListPromptsRequestSchema,
 	ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { createConfig } from './config.js';
 import { authenticateDirectus, createDirectus } from './directus.js';
-import { getAvailablePrompts, handleGetPrompt } from './prompts/handlers.js';
-import { fetchPrompts } from './prompts/index.js';
 import { getTools } from './tools/index.js';
-import { fetchSchema } from './utils/fetch-schema.js';
 import { toMpcTools } from './utils/to-mpc-tools.js';
+
+// Store config and directus client globally for tools to use
+let globalDirectus: any = null;
+let globalConfig: any = {};
+
+// Export for tools to access
+export function getGlobalDirectus() {
+	return globalDirectus;
+}
+
+export function getGlobalConfig() {
+	return globalConfig;
+}
 
 async function main() {
 	const config = createConfig();
+	globalConfig = config; // Store config globally
 	const directus = createDirectus(config);
+	
 	await authenticateDirectus(directus, config);
-	const schema = await fetchSchema(directus);
-	const prompts = await fetchPrompts(directus, config, schema);
+	globalDirectus = directus;
+	
 	const availableTools = getTools(config);
 
 	const server = new Server(
@@ -32,36 +42,15 @@ async function main() {
 		{
 			capabilities: {
 				tools: {},
-				resources: {},
-				prompts: {},
 			},
 		},
 	);
-
-	// Manage prompts
-	server.setRequestHandler(ListPromptsRequestSchema, async () => {
-		return {
-			prompts: getAvailablePrompts(prompts),
-		};
-	});
-
-	// Get specific prompt
-	server.setRequestHandler(GetPromptRequestSchema, async (request) => {
-		const promptName = request.params.name;
-		const args = request.params.arguments || {};
-
-		return await handleGetPrompt(
-			directus,
-			config,
-			promptName,
-			args,
-		);
-	});
 
 	// Manage tool requests
 	server.setRequestHandler(
 		CallToolRequestSchema,
 		async (request: CallToolRequest) => {
+			
 			try {
 				// Find the tool definition among ALL tools
 				const tool = availableTools.find((definition) => {
@@ -75,10 +64,14 @@ async function main() {
 				// Proceed with execution if permission check passes
 				const { inputSchema, handler } = tool;
 				const args = inputSchema.parse(request.params.arguments);
-				return await handler(directus, args, { schema, baseUrl: config.DIRECTUS_URL });
+				
+				// No schema passed - tools will fetch what they need on-demand
+				const result = await handler(directus, args, { 
+					baseUrl: config.DIRECTUS_URL 
+				});
+				return result;
 			}
 			catch (error) {
-				console.error('Error executing tool:', error);
 				const errorMessage =
 					error instanceof Error ? error.message : JSON.stringify(error);
 
@@ -95,20 +88,39 @@ async function main() {
 		},
 	);
 
-	// Return the pre-filtered list for listing purposes
 	server.setRequestHandler(ListToolsRequestSchema, async () => {
-		return { tools: toMpcTools(availableTools) };
+		const tools = toMpcTools(availableTools);
+		return { tools };
 	});
 
 	const transport = new StdioServerTransport();
-
-	await server.connect(transport);
+	
+	const connectPromise = server.connect(transport);
+	const timeoutPromise = new Promise<never>((_, reject) => {
+		setTimeout(() => reject(new Error('MCP connection timeout after 30 seconds')), 30000);
+	});
+	
+	await Promise.race([connectPromise, timeoutPromise]);
 }
 
-try {
-	await main();
-}
-catch (error) {
-	console.error('Fatal error in main():', error);
+// Add process error handlers to prevent crashes
+process.on('uncaughtException', (error) => {
+	console.error('Uncaught exception:', error);
 	process.exit(1);
-}
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+	console.error('Unhandled rejection at:', promise, 'reason:', reason);
+	process.exit(1);
+});
+
+// Wrap in IIFE to use top-level await
+(async () => {
+	try {
+		await main();
+	}
+	catch (error) {
+		console.error('Fatal error in main():', error);
+		process.exit(1);
+	}
+})();

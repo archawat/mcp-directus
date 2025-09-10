@@ -38,7 +38,7 @@ export async function fetchPrompts(
 ): Promise<Record<string, McpPrompt>> {
 	// If no prompts collection is configured, return an empty object
 	if (!config.DIRECTUS_PROMPTS_COLLECTION) {
-		console.error('No prompts collection configured, skipping prompt fetching');
+		console.log('No prompts collection configured, skipping prompt fetching');
 		return {};
 	}
 
