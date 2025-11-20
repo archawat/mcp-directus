@@ -14,6 +14,8 @@ export const FieldSchemaInfoSchema = z.object({
 	data_type: optionalString().describe('Database specific data type for the field.'),
 	default_value: z.any().nullable().optional().describe('The default value of the field.'),
 	max_length: nullableNumber().describe('The max length of the field.'),
+	numeric_precision: nullableNumber().describe('Total number of digits for numeric fields (decimal, float). Example: For 123.45, precision is 5.'),
+	numeric_scale: nullableNumber().describe('Number of digits after decimal point for numeric fields. Example: For 123.45, scale is 2. Defaults to 5 if not specified.'),
 	is_nullable: optionalBoolean().describe('If the field is nullable.'),
 	is_primary_key: optionalBoolean().describe('If the field is primary key.'),
 	has_auto_increment: optionalBoolean().describe('If the field has auto increment.'),

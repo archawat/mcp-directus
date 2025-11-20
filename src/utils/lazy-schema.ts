@@ -47,3 +47,12 @@ export async function collectionExists(collectionName: string) {
 	const schema = await getSchemaLazy();
 	return !!schema[collectionName];
 }
+
+/**
+ * Invalidate schema cache (call after creating/deleting collections)
+ * This forces schema to be reloaded on next access, which includes updated permissions
+ */
+export function invalidateSchemaCache() {
+	console.log('Schema cache invalidated - will reload on next access');
+	schemaCache = null;
+}

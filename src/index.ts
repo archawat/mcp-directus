@@ -67,7 +67,8 @@ async function main() {
 				
 				// No schema passed - tools will fetch what they need on-demand
 				const result = await handler(directus, args, { 
-					baseUrl: config.DIRECTUS_URL 
+					baseUrl: config.DIRECTUS_URL,
+					config: config
 				});
 				return result;
 			}

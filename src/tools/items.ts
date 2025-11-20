@@ -3,6 +3,7 @@ import { createItem, deleteItem, readItems, updateItem } from '@directus/sdk';
 import * as z from 'zod';
 import { simpleItemQuerySchema } from '../types/simple-query.js';
 import { defineTool } from '../utils/define.js';
+import { isSystemCollection } from '../utils/is-system-collection.js';
 import { collectionExists, getCollectionSchema } from '../utils/lazy-schema.js';
 import { generateCmsLink } from '../utils/links.js';
 import {
@@ -82,6 +83,11 @@ export const createItemTool = defineTool('create-item', {
 				throw new Error(`Collection "${collection}" not found.`);
 			}
 			
+			// Check if trying to modify system collection without permission
+			if (isSystemCollection(collection) && !ctx?.config?.ALLOW_SYSTEM_MODIFICATIONS) {
+				throw new Error(`Modifications to system collection "${collection}" are disabled for safety. Set ALLOW_SYSTEM_MODIFICATIONS=true to enable.`);
+			}
+			
 			const collectionSchema = await getCollectionSchema(collection);
 			const primaryKeyField = Object.keys(collectionSchema).find(
 				field => collectionSchema[field].primary_key
@@ -131,6 +137,11 @@ export const updateItemTool = defineTool('update-item', {
 			
 			if (!(await collectionExists(collection))) {
 				throw new Error(`Collection "${collection}" not found.`);
+			}
+			
+			// Check if trying to modify system collection without permission
+			if (isSystemCollection(collection) && !ctx?.config?.ALLOW_SYSTEM_MODIFICATIONS) {
+				throw new Error(`Modifications to system collection "${collection}" are disabled for safety. Set ALLOW_SYSTEM_MODIFICATIONS=true to enable.`);
 			}
 			
 			const collectionSchema = await getCollectionSchema(collection);

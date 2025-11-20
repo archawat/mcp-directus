@@ -19,8 +19,8 @@ export async function fetchSchema(directus: Directus, config?: Config): Promise<
 		const schema: Schema = {};
 
 		// Apply configuration limits
-		const maxCollections = config?.MAX_SCHEMA_COLLECTIONS ?? 50;
-		const maxFieldsPerCollection = config?.MAX_SCHEMA_FIELDS_PER_COLLECTION ?? 100;
+		const maxCollections = 100;
+		const maxFieldsPerCollection = 180;
 		const excludeCollections = new Set(config?.SCHEMA_EXCLUDE_COLLECTIONS ?? []);
 
 		// Count collections and fields to manage size
@@ -141,7 +141,6 @@ export async function fetchSchema(directus: Directus, config?: Config): Promise<
 		schema[field.collection]![field.field] = schemaField;
 	}
 
-		console.log(`Schema loaded: ${totalCollections} collections, ${Object.values(collectionsFieldCount).reduce((a, b) => a + b, 0)} total fields`);
 		
 		return schema;
 	} catch (error) {

@@ -1,5 +1,6 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodType } from 'zod';
+import type { Config } from '../config.js';
 import type { Directus } from '../directus.js';
 import type { Schema } from '../types/schema.js';
 
@@ -11,6 +12,6 @@ export interface ToolDefinition<Params = any> {
 	handler: (
 		directus: Directus,
 		args: Params,
-		ctx?: { schema?: Schema; baseUrl?: string },
+		ctx?: { schema?: Schema; baseUrl?: string; config?: Config },
 	) => Promise<CallToolResult>;
 }

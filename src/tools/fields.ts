@@ -15,6 +15,7 @@ import {
 	formatErrorResponse,
 	formatSuccessResponse,
 } from '../utils/response.js';
+import { invalidateSchemaCache } from '../utils/lazy-schema.js';
 
 export const readFieldsTool = defineTool('read-fields', {
 	description:
@@ -74,36 +75,45 @@ export const createFieldTool = defineTool('create-field', {
 	handler: async (directus, { collection, data }) => {
 		try {
 			// Set default interfaces based on field type if not specified
-			if (!data.meta?.interface) {
-				const defaultInterfaces: Record<string, string> = {
-					'm2o': 'select-dropdown-m2o',
-					'o2m': 'list-o2m',
-					'm2m': 'list-m2m',
-					'string': 'input',
-					'text': 'input-multiline',
-					'integer': 'input',
-					'bigInteger': 'input',
-					'float': 'input',
-					'decimal': 'input',
-					'boolean': 'boolean',
-					'date': 'datetime',
-					'dateTime': 'datetime',
-					'time': 'input',
-					'timestamp': 'datetime',
-					'json': 'input-code',
-					'uuid': 'input',
-				};
-				
-				const defaultInterface = defaultInterfaces[data.type];
-				if (defaultInterface) {
-					data.meta = {
-						...data.meta,
-						interface: defaultInterface,
-					};
-				}
-			}
-			
+			const defaultInterfaces: Record<string, string> = {
+				'm2o': 'select-dropdown-m2o',
+				'o2m': 'list-o2m',
+				'm2m': 'list-m2m',
+				'string': 'input',
+				'text': 'input-multiline',
+				'integer': 'input',
+				'bigInteger': 'input',
+				'float': 'input',
+				'decimal': 'input',
+				'boolean': 'boolean',
+				'date': 'datetime',
+				'dateTime': 'datetime',
+				'time': 'input',
+				'timestamp': 'datetime',
+				'json': 'input-code',
+				'uuid': 'input',
+			};
+
+			// Build complete meta object with proper defaults to match dashboard behavior
+			const defaultInterface = data.meta?.interface || defaultInterfaces[data.type];
+			data.meta = {
+				// Set comprehensive defaults to match Directus dashboard behavior
+				interface: defaultInterface,
+				display: null,
+				display_options: null,
+				readonly: false,
+				hidden: false,
+				width: 'full',
+				required: false,
+				// Merge any user-provided meta properties on top of defaults
+				...data.meta,
+			};
+
 			const result = await directus.request(createField(collection, data));
+
+			// Invalidate schema cache to refresh collection schema
+			invalidateSchemaCache();
+
 			return formatSuccessResponse(result);
 		}
 		catch (error) {
