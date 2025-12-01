@@ -328,6 +328,9 @@ const records = await database('collection').where(...);
 8. ❌ Using _nempty on arrays → ✅ Use exec to check array.length
 9. ❌ Forgetting limit parameter → ✅ Always include limit
 10. ❌ Using request for Directus collections → ✅ Use item-read
+11. ❌ Creating operation with resolve to already-targeted operation → ✅ Create WITHOUT resolve, then update chain
+12. ❌ Setting resolve/reject to null → ✅ Cannot disconnect - update chain to point elsewhere
+13. ❌ Using raw field names in conditions → ✅ Use $last.field or {{key.field}} references
 
 ## Flow Operation Linking
 
@@ -348,6 +351,43 @@ Operations must be linked using resolve/reject fields:
   "reject": "OP-IF-FALSE-UUID"    // Execute if condition is false
 }
 \`\`\`
+
+## CRITICAL: Adding Operations to Existing Flows
+
+**⚠️ UNIQUE CONSTRAINT on resolve/reject:**
+Each operation can only be the target of ONE resolve and ONE reject pointer.
+
+**Common Error:**
+\`\`\`
+{"message": "Value for field 'resolve' in collection 'directus_operations' has to be unique."}
+\`\`\`
+This happens when you try to set resolve to an operation that's already being resolved to.
+
+**Cannot Set resolve/reject to null:**
+\`\`\`
+{"message": "Invalid input: expected string, received null"}
+\`\`\`
+The API expects a string UUID, not null. Don't try to "disconnect" operations.
+
+**CORRECT WORKFLOW for inserting operation B between A → C:**
+\`\`\`
+Step 1: create-operation B (WITHOUT resolve/reject)
+Step 2: update-operation A → set resolve to B's ID
+Step 3: update-operation B → set resolve to C's ID
+\`\`\`
+
+**WRONG (will fail):**
+\`\`\`
+❌ Create B with resolve pointing to C (C is already A's resolve target)
+❌ Update A's resolve to null first (null not allowed)
+\`\`\`
+
+## Data References in Operations
+
+- **$last.field** - Data from immediately previous operation
+- **{{operation_key.field}}** - Data from any named operation by its key
+- **{{operation_key[0].field}}** - First item from item-read results (arrays)
+- **{{$trigger.body.field}}** - Data from manual trigger confirmation dialog
 
 ## Complete Flow Example Structure
 
@@ -385,4 +425,7 @@ Operation 7: Update State
 - For flows: ALWAYS use exec + condition pattern for array checks
 - For flows: ALWAYS use _and/_or to combine filters
 - For flows: NEVER use database imports in exec operations
+- For operations: ALWAYS create WITHOUT resolve/reject first, then update chain
+- For operations: NEVER try to set resolve/reject to null (use update to redirect)
+- For operations: Use $last.field or {{key.field}} for data references
 `;
