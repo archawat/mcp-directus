@@ -14,6 +14,17 @@ import {
 	formatSuccessResponse,
 } from '../utils/response.js';
 
+/**
+ * Manual trigger options schema (for reference):
+ * - collections: string[] - Collections that can trigger this flow
+ * - location: "both" | "collection" | "item" - Where to show the trigger button
+ * - requireSelection: boolean - Whether item selection is required on collection page
+ * - async: boolean - If true, flow executes asynchronously
+ * - requireConfirmation: boolean - If true, shows a confirmation dialog
+ * - confirmationDescription: string - Custom text for confirmation dialog
+ * - fields: array - Input fields for user data in confirmation dialog
+ */
+
 export const readFlowsTool = defineTool('read-flows', {
 	description: 'Fetch flows from Directus. By default returns all flows. Optionally filter by trigger type.',
 	annotations: {
@@ -158,7 +169,16 @@ export const readFlowTool = defineTool('read-flow', {
 });
 
 export const createFlowTool = defineTool('create-flow', {
-	description: 'Create a new automation flow in Directus.',
+	description: `Create a new automation flow in Directus.
+
+For manual trigger flows, use the following options structure:
+- location: "both" | "collection" | "item" - where the trigger button appears
+- requireSelection: boolean - whether items must be selected (only for collection/both location)
+- collections: string[] - which collections show the trigger button
+- async: boolean - whether flow runs asynchronously
+- requireConfirmation: boolean - whether to show confirmation dialog
+- confirmationDescription: string - text in confirmation dialog
+- fields: array - input fields for user data in confirmation dialog`,
 	annotations: {
 		title: 'Create Flow',
 	},
@@ -168,9 +188,11 @@ export const createFlowTool = defineTool('create-flow', {
 		color: z.string().optional().describe('Color hex code'),
 		description: z.string().optional().describe('Flow description'),
 		status: z.enum(['active', 'inactive']).optional().default('active').describe('Flow status'),
-		trigger: z.string().optional().describe('Trigger type (e.g., "manual", "webhook", "schedule", "operation")'),
+		trigger: z.enum(['manual', 'webhook', 'schedule', 'operation', 'event']).optional()
+			.describe('Trigger type'),
 		accountability: z.enum(['all', 'activity']).optional().default('all').describe('Accountability level'),
-		options: z.record(z.string(), z.any()).optional().describe('Flow options (collections, fields, etc.)'),
+		options: z.record(z.string(), z.any()).optional()
+			.describe('Flow options. For manual triggers, includes: location ("both"|"collection"|"item"), requireSelection (boolean), collections (string[]), async (boolean), requireConfirmation (boolean), confirmationDescription (string), fields (array)'),
 		operation: z.string().optional().describe('ID of the first operation to execute in this flow'),
 	}),
 	handler: async (directus, input) => {
@@ -201,7 +223,14 @@ export const createFlowTool = defineTool('create-flow', {
 });
 
 export const updateFlowTool = defineTool('update-flow', {
-	description: 'Update an existing flow. Use this to link the first operation to the flow after creating it.',
+	description: `Update an existing flow. Use this to link the first operation to the flow after creating it.
+
+For manual trigger flows, options can include:
+- location: "both" | "collection" | "item" - where the trigger button appears
+- requireSelection: boolean - whether items must be selected (only for collection/both location)
+- collections: string[] - which collections show the trigger button
+- async: boolean - whether flow runs asynchronously
+- requireConfirmation: boolean - whether to show confirmation dialog`,
 	annotations: {
 		title: 'Update Flow',
 	},
@@ -213,9 +242,11 @@ export const updateFlowTool = defineTool('update-flow', {
 			color: z.string().optional().describe('Color hex code'),
 			description: z.string().optional().describe('Flow description'),
 			status: z.enum(['active', 'inactive']).optional().describe('Flow status'),
-			trigger: z.string().optional().describe('Trigger type'),
+			trigger: z.enum(['manual', 'webhook', 'schedule', 'operation', 'event']).optional()
+				.describe('Trigger type'),
 			accountability: z.enum(['all', 'activity']).optional().describe('Accountability level'),
-			options: z.record(z.string(), z.any()).optional().describe('Flow options'),
+			options: z.record(z.string(), z.any()).optional()
+				.describe('Flow options. For manual triggers: location ("both"|"collection"|"item"), requireSelection (boolean), collections (string[]), async (boolean), requireConfirmation (boolean)'),
 			operation: z.string().optional().describe('ID of the first operation to execute in this flow'),
 		}).describe('Data to update'),
 	}),
