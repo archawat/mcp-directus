@@ -27,29 +27,11 @@ Add to your Claude Desktop configuration:
 {
   "mcpServers": {
     "directus": {
-      "command": "npx",
-      "args": ["mcp-directus@latest"],
+      "command": "node",
+      "args": ["/path/to/mcp-directus/dist/index.js"],
       "env": {
-        "DIRECTUS_URL": "https://your-directus-url.com",
-        "DIRECTUS_TOKEN": "your-directus-token"
-      }
-    }
-  }
-}
-```
-
-Or with email/password:
-
-```json
-{
-  "mcpServers": {
-    "directus": {
-      "command": "npx", 
-      "args": ["mcp-directus@latest"],
-      "env": {
-        "DIRECTUS_URL": "https://your-directus-url.com",
-        "DIRECTUS_USER_EMAIL": "user@example.com",
-        "DIRECTUS_USER_PASSWORD": "your-password"
+        "DIRECTUS_URL": "your-url",
+        "DIRECTUS_TOKEN": "your-token"
       }
     }
   }
@@ -259,22 +241,6 @@ cd mcp-directus
 pnpm install
 pnpm build
 pnpm dev
-```
-
-Use in Claude Desktop with local path:
-```json
-{
-  "mcpServers": {
-    "directus": {
-      "command": "node",
-      "args": ["/path/to/mcp-directus/dist/index.js"],
-      "env": {
-        "DIRECTUS_URL": "your-url",
-        "DIRECTUS_TOKEN": "your-token"
-      }
-    }
-  }
-}
 ```
 
 ## 📊 Memory Usage Comparison
