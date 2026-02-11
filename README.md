@@ -19,18 +19,40 @@ A highly optimized [Model Context Protocol](https://modelcontextprotocol.io/intr
 
 ### Installation
 
-#### Claude Desktop
+#### Using npx (Recommended)
 
-Add to your Claude Desktop configuration:
+No installation needed. Add to your MCP client configuration (Claude Desktop / Claude Code / Cursor):
 
 ```json
 {
   "mcpServers": {
     "directus": {
-      "command": "node",
-      "args": ["/path/to/mcp-directus/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@archawat/mcp-directus"],
       "env": {
-        "DIRECTUS_URL": "your-url",
+        "DIRECTUS_URL": "https://your-instance.com",
+        "DIRECTUS_TOKEN": "your-token"
+      }
+    }
+  }
+}
+```
+
+#### Global Install
+
+```bash
+npm install -g @archawat/mcp-directus
+```
+
+Then configure your MCP client:
+
+```json
+{
+  "mcpServers": {
+    "directus": {
+      "command": "mcp-directus",
+      "env": {
+        "DIRECTUS_URL": "https://your-instance.com",
         "DIRECTUS_TOKEN": "your-token"
       }
     }
@@ -241,6 +263,23 @@ cd mcp-directus
 pnpm install
 pnpm build
 pnpm dev
+```
+
+For local MCP client testing, use the local path:
+
+```json
+{
+  "mcpServers": {
+    "directus": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-directus/dist/index.js"],
+      "env": {
+        "DIRECTUS_URL": "https://your-instance.com",
+        "DIRECTUS_TOKEN": "your-token"
+      }
+    }
+  }
+}
 ```
 
 ## 📊 Memory Usage Comparison
