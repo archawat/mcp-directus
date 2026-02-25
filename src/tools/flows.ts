@@ -26,7 +26,8 @@ import {
  */
 
 export const readFlowsTool = defineTool('read-flows', {
-	description: 'Fetch flows from Directus. By default returns all flows. Optionally filter by trigger type.',
+	description: `Fetch flows from Directus. Returns summary fields by default to reduce token usage.
+		Use 'fields' to request additional fields. Use 'limit' to control result count (default: 20).`,
 	annotations: {
 		title: 'Read Flows',
 		readOnlyHint: true,
@@ -34,10 +35,17 @@ export const readFlowsTool = defineTool('read-flows', {
 	inputSchema: z.object({
 		trigger: z.enum(['manual', 'webhook', 'schedule', 'operation', 'event']).optional()
 			.describe('Optional filter by trigger type. If not specified, returns all flows.'),
+		fields: z.array(z.string()).optional()
+			.describe('Fields to return. Defaults to summary fields: id, name, status, trigger, description. Use ["*"] for all fields.'),
+		limit: z.number().optional()
+			.describe('Maximum number of flows to return (default: 20)'),
 	}),
-	handler: async (directus, { trigger }) => {
+	handler: async (directus, { trigger, fields, limit }) => {
 		try {
-			const query: any = {};
+			const query: any = {
+				fields: fields || ['id', 'name', 'status', 'trigger', 'description'],
+				limit: limit || 20,
+			};
 
 			// Only add filter if trigger is specified
 			if (trigger) {
@@ -149,17 +157,23 @@ export const triggerFlowTool = defineTool('trigger-flow', {
 });
 
 export const readFlowTool = defineTool('read-flow', {
-	description: 'Retrieve a specific flow by ID.',
+	description: `Retrieve a specific flow by ID. Returns summary fields by default.
+		Use 'fields' to request additional fields like options or operations.`,
 	annotations: {
 		title: 'Read Flow',
 		readOnlyHint: true,
 	},
 	inputSchema: z.object({
 		id: z.string().describe('Flow ID'),
+		fields: z.array(z.string()).optional()
+			.describe('Fields to return. Defaults to: id, name, status, trigger, description, options, operation. Use ["*"] for all fields.'),
 	}),
-	handler: async (directus, { id }) => {
+	handler: async (directus, { id, fields }) => {
 		try {
-			const result = await directus.request(readFlow(id));
+			const query: any = {
+				fields: fields || ['id', 'name', 'status', 'trigger', 'description', 'options', 'operation'],
+			};
+			const result = await directus.request(readFlow(id, query));
 			return formatSuccessResponse(result);
 		}
 		catch (error) {

@@ -37,17 +37,28 @@ import {
  */
 
 export const readOperationsTool = defineTool('read-operations', {
-	description: 'Read all operations or filter by flow ID.',
+	description: `Read operations, optionally filtered by flow ID. Returns summary fields by default to reduce token usage.
+		Use 'fields' to request additional fields. Use 'limit' to control result count (default: 20).`,
 	annotations: {
 		title: 'Read Operations',
 		readOnlyHint: true,
 	},
 	inputSchema: z.object({
 		flow_id: z.string().optional().describe('Filter operations by flow ID'),
+		fields: z.array(z.string()).optional().describe('Fields to return. Defaults to summary fields: id, name, key, type, flow, position_x, position_y, resolve, reject. Use ["*"] for all fields.'),
+		limit: z.number().optional().describe('Maximum number of operations to return (default: 20)'),
 	}),
-	handler: async (directus, { flow_id }) => {
+	handler: async (directus, { flow_id, fields, limit }) => {
 		try {
-			const query = flow_id ? { filter: { flow: { _eq: flow_id } } } : {};
+			const query: any = {
+				fields: fields || ['id', 'name', 'key', 'type', 'flow', 'position_x', 'position_y', 'resolve', 'reject'],
+				limit: limit || 20,
+			};
+
+			if (flow_id) {
+				query.filter = { flow: { _eq: flow_id } };
+			}
+
 			const result = await directus.request(readOperations(query));
 			return formatSuccessResponse(result);
 		}
@@ -58,17 +69,22 @@ export const readOperationsTool = defineTool('read-operations', {
 });
 
 export const readOperationTool = defineTool('read-operation', {
-	description: 'Read a specific operation by ID.',
+	description: `Read a specific operation by ID. Returns summary fields by default.
+		Use 'fields' to request additional fields like options.`,
 	annotations: {
 		title: 'Read Operation',
 		readOnlyHint: true,
 	},
 	inputSchema: z.object({
 		id: z.string().describe('Operation ID'),
+		fields: z.array(z.string()).optional().describe('Fields to return. Defaults to: id, name, key, type, flow, options, position_x, position_y, resolve, reject. Use ["*"] for all fields.'),
 	}),
-	handler: async (directus, { id }) => {
+	handler: async (directus, { id, fields }) => {
 		try {
-			const result = await directus.request(readOperation(id));
+			const query: any = {
+				fields: fields || ['id', 'name', 'key', 'type', 'flow', 'options', 'position_x', 'position_y', 'resolve', 'reject'],
+			};
+			const result = await directus.request(readOperation(id, query));
 			return formatSuccessResponse(result);
 		}
 		catch (error) {
@@ -132,7 +148,7 @@ Operation Types: condition, item-read, item-create, item-update, item-delete, ex
 			const result = await directus.request(createOperation(operationData));
 			return formatSuccessResponse(
 				result,
-				`Operation "${input.key}" (${input.type}) created in flow ${input.flow}.`
+				`Operation "${input.key}" (${input.type}) created in flow ${input.flow}.`,
 			);
 		}
 		catch (error) {
@@ -179,7 +195,7 @@ WORKFLOW for inserting operation between A → C:
 			const result = await directus.request(updateOperation(id, data));
 			return formatSuccessResponse(
 				result,
-				`Operation ${id} updated successfully.`
+				`Operation ${id} updated successfully.`,
 			);
 		}
 		catch (error) {
@@ -202,7 +218,7 @@ export const deleteOperationTool = defineTool('delete-operation', {
 			await directus.request(deleteOperation(id));
 			return formatSuccessResponse(
 				null,
-				`Operation ${id} deleted successfully.`
+				`Operation ${id} deleted successfully.`,
 			);
 		}
 		catch (error) {
