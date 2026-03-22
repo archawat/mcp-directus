@@ -1,43 +1,49 @@
 import * as DOMPurify from 'isomorphic-dompurify';
 import { marked } from 'marked';
-import * as z from 'zod';
-import { defineTool } from '../utils/define.js';
+import { z } from 'zod';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { Directus } from '../directus.js';
+import type { Config } from '../config.js';
 import { formatErrorResponse } from '../utils/response.js';
 
-export function markdownToHtml(markdown: string) {
-	return DOMPurify.sanitize(marked.parse(markdown));
+export async function markdownToHtml(markdown: string) {
+	return DOMPurify.sanitize(await marked.parse(markdown));
 }
 
-export function htmlToMarkdown(html: string) {
-	return marked.parse(html);
+export async function htmlToMarkdown(html: string) {
+	return await marked.parse(html);
 }
 
-export const markdownTool = defineTool('markdown-tool', {
-	description:
-		'Convert HTML to Markdown or Markdown to HTML.',
-	annotations: {
+export function registerMarkdownTools(server: McpServer, _directus: Directus, _config: Config) {
+	server.registerTool('directus_markdown', {
 		title: 'Markdown Tool',
-		readOnlyHint: true,
-	},
-	inputSchema: z.object({
-		html: z.string().optional().describe('HTML string to convert to Markdown'),
-		markdown: z.string().optional().describe('Markdown string to convert to HTML'),
-	}).refine((data) => data.html || data.markdown, {
-		message: 'Either html or markdown must be provided',
-		path: ['html', 'markdown'],
-	}),
-	// @ts-expect-error - We're not using the directus client here
-	handler: async (_directus, query) => {
+		description:
+			'Convert HTML to Markdown or Markdown to HTML.',
+		inputSchema: {
+			html: z.string().optional().describe('HTML string to convert to Markdown'),
+			markdown: z.string().optional().describe('Markdown string to convert to HTML'),
+		},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	}, async ({ html, markdown: md }) => {
 		try {
-			if (query.html) {
+			if (!html && !md) {
+				return formatErrorResponse(new Error('Either html or markdown must be provided'));
+			}
+
+			if (html) {
 				return {
-					content: [{ type: 'text', text: htmlToMarkdown(query.html) }],
+					content: [{ type: 'text' as const, text: await htmlToMarkdown(html) }],
 				};
 			}
 
-			if (query.markdown) {
+			if (md) {
 				return {
-					content: [{ type: 'text', text: markdownToHtml(query.markdown) }],
+					content: [{ type: 'text' as const, text: await markdownToHtml(md) }],
 				};
 			}
 
@@ -46,5 +52,5 @@ export const markdownTool = defineTool('markdown-tool', {
 		catch (error) {
 			return formatErrorResponse(error);
 		}
-	},
-});
+	});
+}

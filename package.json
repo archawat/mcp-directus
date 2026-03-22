@@ -1,7 +1,7 @@
 {
 	"name": "@archawat/mcp-directus",
 	"type": "module",
-	"version": "1.0.2",
+	"version": "2.0.0",
 	"packageManager": "pnpm@10.4.1",
 	"description": "Model Context Protocol server for Directus projects.",
 	"contributors": [
@@ -50,11 +50,11 @@
 	},
 	"dependencies": {
 		"@directus/sdk": "19.1.0",
-		"@modelcontextprotocol/sdk": "1.10.2",
+		"@modelcontextprotocol/sdk": "^1.27.1",
 		"dotenv": "16.5.0",
 		"isomorphic-dompurify": "^2.24.0",
 		"marked": "^15.0.11",
-		"zod": "4.0.0-beta.20250424T163858"
+		"zod": "^3.25.1"
 	},
 	"devDependencies": {
 		"@directus/eslint-config": "^0.1.0",

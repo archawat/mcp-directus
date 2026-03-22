@@ -6,7 +6,9 @@ import {
 	updateOperation,
 } from '@directus/sdk';
 import * as z from 'zod';
-import { defineTool } from '../utils/define.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { Directus } from '../directus.js';
+import type { Config } from '../config.js';
 import {
 	formatErrorResponse,
 	formatSuccessResponse,
@@ -36,19 +38,23 @@ import {
  *    - Use {{operation_key[0].field}} for first item from item-read results
  */
 
-export const readOperationsTool = defineTool('read-operations', {
-	description: `Read operations, optionally filtered by flow ID. Returns summary fields by default to reduce token usage.
-		Use 'fields' to request additional fields. Use 'limit' to control result count (default: 20).`,
-	annotations: {
+export function registerOperationTools(server: McpServer, directus: Directus, _config: Config) {
+	server.registerTool('directus_read_operations', {
 		title: 'Read Operations',
-		readOnlyHint: true,
-	},
-	inputSchema: z.object({
-		flow_id: z.string().optional().describe('Filter operations by flow ID'),
-		fields: z.array(z.string()).optional().describe('Fields to return. Defaults to summary fields: id, name, key, type, flow, position_x, position_y, resolve, reject. Use ["*"] for all fields.'),
-		limit: z.number().optional().describe('Maximum number of operations to return (default: 20)'),
-	}),
-	handler: async (directus, { flow_id, fields, limit }) => {
+		description: `Read operations, optionally filtered by flow ID. Returns summary fields by default to reduce token usage.
+		Use 'fields' to request additional fields. Use 'limit' to control result count (default: 20).`,
+		inputSchema: {
+			flow_id: z.string().optional().describe('Filter operations by flow ID'),
+			fields: z.array(z.string()).optional().describe('Fields to return. Defaults to summary fields: id, name, key, type, flow, position_x, position_y, resolve, reject. Use ["*"] for all fields.'),
+			limit: z.number().optional().describe('Maximum number of operations to return (default: 20)'),
+		},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	}, async ({ flow_id, fields, limit }) => {
 		try {
 			const query: any = {
 				fields: fields || ['id', 'name', 'key', 'type', 'flow', 'position_x', 'position_y', 'resolve', 'reject'],
@@ -65,21 +71,23 @@ export const readOperationsTool = defineTool('read-operations', {
 		catch (error) {
 			return formatErrorResponse(error);
 		}
-	},
-});
+	});
 
-export const readOperationTool = defineTool('read-operation', {
-	description: `Read a specific operation by ID. Returns summary fields by default.
-		Use 'fields' to request additional fields like options.`,
-	annotations: {
+	server.registerTool('directus_read_operation', {
 		title: 'Read Operation',
-		readOnlyHint: true,
-	},
-	inputSchema: z.object({
-		id: z.string().describe('Operation ID'),
-		fields: z.array(z.string()).optional().describe('Fields to return. Defaults to: id, name, key, type, flow, options, position_x, position_y, resolve, reject. Use ["*"] for all fields.'),
-	}),
-	handler: async (directus, { id, fields }) => {
+		description: `Read a specific operation by ID. Returns summary fields by default.
+		Use 'fields' to request additional fields like options.`,
+		inputSchema: {
+			id: z.string().describe('Operation ID'),
+			fields: z.array(z.string()).optional().describe('Fields to return. Defaults to: id, name, key, type, flow, options, position_x, position_y, resolve, reject. Use ["*"] for all fields.'),
+		},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	}, async ({ id, fields }) => {
 		try {
 			const query: any = {
 				fields: fields || ['id', 'name', 'key', 'type', 'flow', 'options', 'position_x', 'position_y', 'resolve', 'reject'],
@@ -90,13 +98,13 @@ export const readOperationTool = defineTool('read-operation', {
 		catch (error) {
 			return formatErrorResponse(error);
 		}
-	},
-});
+	});
 
-export const createOperationTool = defineTool('create-operation', {
-	description: `Create a new operation within a flow.
+	server.registerTool('directus_create_operation', {
+		title: 'Create Operation',
+		description: `Create a new operation within a flow.
 
-⚠️ CRITICAL: Operation Chaining Rules
+\u26a0\ufe0f CRITICAL: Operation Chaining Rules
 
 1. UNIQUE CONSTRAINT on resolve/reject:
    - Each operation can only be the target of ONE resolve and ONE reject
@@ -105,8 +113,8 @@ export const createOperationTool = defineTool('create-operation', {
 
 2. RECOMMENDED WORKFLOW for adding to existing flows:
    Step 1: Create new operation WITHOUT resolve/reject
-   Step 2: Use update-operation on PREVIOUS operation to point to new one
-   Step 3: Use update-operation on NEW operation to point to next one
+   Step 2: Use directus_update_operation on PREVIOUS operation to point to new one
+   Step 3: Use directus_update_operation on NEW operation to point to next one
 
 3. CANNOT set resolve/reject to null (API requires string UUID)
 
@@ -116,21 +124,24 @@ export const createOperationTool = defineTool('create-operation', {
    - {{operation_key[0].field}} - first item from item-read arrays
 
 Operation Types: condition, item-read, item-create, item-update, item-delete, exec, mail, request, trigger-flow, log, transform`,
-	annotations: {
-		title: 'Create Operation',
-	},
-	inputSchema: z.object({
-		flow: z.string().describe('Flow ID this operation belongs to'),
-		name: z.string().optional().describe('Operation name (optional)'),
-		key: z.string().describe('Unique key for this operation (used in data references like {{key.field}})'),
-		type: z.string().describe('Operation type: condition, item-read, item-create, item-update, item-delete, exec, mail, request, trigger-flow, log, transform'),
-		position_x: z.number().default(0).describe('X position in flow diagram'),
-		position_y: z.number().default(0).describe('Y position in flow diagram'),
-		options: z.record(z.string(), z.any()).optional().describe('Operation-specific options (varies by type)'),
-		resolve: z.string().optional().describe('Operation ID to execute on success. WARNING: Must be unique - use update-operation instead if inserting into chain'),
-		reject: z.string().optional().describe('Operation ID to execute on failure. WARNING: Must be unique'),
-	}),
-	handler: async (directus, input) => {
+		inputSchema: {
+			flow: z.string().describe('Flow ID this operation belongs to'),
+			name: z.string().optional().describe('Operation name (optional)'),
+			key: z.string().describe('Unique key for this operation (used in data references like {{key.field}})'),
+			type: z.string().describe('Operation type: condition, item-read, item-create, item-update, item-delete, exec, mail, request, trigger-flow, log, transform'),
+			position_x: z.number().default(0).describe('X position in flow diagram'),
+			position_y: z.number().default(0).describe('Y position in flow diagram'),
+			options: z.record(z.string(), z.any()).optional().describe('Operation-specific options (varies by type)'),
+			resolve: z.string().optional().describe('Operation ID to execute on success. WARNING: Must be unique - use directus_update_operation instead if inserting into chain'),
+			reject: z.string().optional().describe('Operation ID to execute on failure. WARNING: Must be unique'),
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: false,
+			openWorldHint: false,
+		},
+	}, async (input) => {
 		try {
 			const operationData: any = {
 				flow: input.flow,
@@ -154,45 +165,48 @@ Operation Types: condition, item-read, item-create, item-update, item-delete, ex
 		catch (error) {
 			return formatErrorResponse(error);
 		}
-	},
-});
+	});
 
-export const updateOperationTool = defineTool('update-operation', {
-	description: `Update an existing operation. This is the preferred way to modify operation chains.
+	server.registerTool('directus_update_operation', {
+		title: 'Update Operation',
+		description: `Update an existing operation. This is the preferred way to modify operation chains.
 
 USE THIS TOOL TO:
 - Link operations together (set resolve/reject after creation)
 - Insert new operations into existing chains
 - Modify operation options or data references
 
-⚠️ IMPORTANT NOTES:
+\u26a0\ufe0f IMPORTANT NOTES:
 - Cannot set resolve/reject to null (API requires string UUID)
 - To "disconnect" an operation, update the chain to point elsewhere
 - Each operation can only be resolved/rejected TO by ONE other operation
 
-WORKFLOW for inserting operation between A → C:
+WORKFLOW for inserting operation between A \u2192 C:
 1. Create new operation B (no resolve/reject)
-2. update-operation A: set resolve to B's ID
-3. update-operation B: set resolve to C's ID`,
-	annotations: {
-		title: 'Update Operation',
-	},
-	inputSchema: z.object({
-		id: z.string().describe('Operation ID to update'),
-		data: z.object({
-			name: z.string().optional().describe('Operation name'),
-			key: z.string().optional().describe('Unique key (used in {{key.field}} references)'),
-			type: z.string().optional().describe('Operation type'),
-			position_x: z.number().optional().describe('X position in flow diagram'),
-			position_y: z.number().optional().describe('Y position in flow diagram'),
-			options: z.record(z.string(), z.any()).optional().describe('Operation options - use $last.field or {{key.field}} for data references'),
-			resolve: z.string().optional().describe('Operation ID to execute on success (must be unique target)'),
-			reject: z.string().optional().describe('Operation ID to execute on failure (must be unique target)'),
-		}).describe('Data to update'),
-	}),
-	handler: async (directus, { id, data }) => {
+2. directus_update_operation A: set resolve to B's ID
+3. directus_update_operation B: set resolve to C's ID`,
+		inputSchema: {
+			id: z.string().describe('Operation ID to update'),
+			data: z.object({
+				name: z.string().optional().describe('Operation name'),
+				key: z.string().optional().describe('Unique key (used in {{key.field}} references)'),
+				type: z.string().optional().describe('Operation type'),
+				position_x: z.number().optional().describe('X position in flow diagram'),
+				position_y: z.number().optional().describe('Y position in flow diagram'),
+				options: z.record(z.string(), z.any()).optional().describe('Operation options - use $last.field or {{key.field}} for data references'),
+				resolve: z.string().optional().describe('Operation ID to execute on success (must be unique target)'),
+				reject: z.string().optional().describe('Operation ID to execute on failure (must be unique target)'),
+			}).describe('Data to update'),
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	}, async ({ id, data }) => {
 		try {
-			const result = await directus.request(updateOperation(id, data));
+			const result = await directus.request(updateOperation(id, data as any));
 			return formatSuccessResponse(
 				result,
 				`Operation ${id} updated successfully.`,
@@ -201,19 +215,21 @@ WORKFLOW for inserting operation between A → C:
 		catch (error) {
 			return formatErrorResponse(error);
 		}
-	},
-});
+	});
 
-export const deleteOperationTool = defineTool('delete-operation', {
-	description: 'Delete an operation. WARNING: This is destructive.',
-	annotations: {
+	server.registerTool('directus_delete_operation', {
 		title: 'Delete Operation',
-		destructiveHint: true,
-	},
-	inputSchema: z.object({
-		id: z.string().describe('Operation ID to delete'),
-	}),
-	handler: async (directus, { id }) => {
+		description: 'Delete an operation. WARNING: This is destructive.',
+		inputSchema: {
+			id: z.string().describe('Operation ID to delete'),
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: true,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	}, async ({ id }) => {
 		try {
 			await directus.request(deleteOperation(id));
 			return formatSuccessResponse(
@@ -224,5 +240,5 @@ export const deleteOperationTool = defineTool('delete-operation', {
 		catch (error) {
 			return formatErrorResponse(error);
 		}
-	},
-});
+	});
+}
