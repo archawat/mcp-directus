@@ -31,10 +31,12 @@ async function main() {
 	registerAllTools(server, directus, config);
 
 	// Disable tools specified in config
-	for (const toolName of config.DISABLE_TOOLS) {
-		const registeredTool = (server as any)._registeredTools?.get(toolName);
-		if (registeredTool) {
-			registeredTool.disable();
+	const registeredTools = (server as any)._registeredTools as Record<string, { disable: () => void }> | undefined;
+	if (registeredTools) {
+		for (const toolName of config.DISABLE_TOOLS) {
+			if (registeredTools[toolName]) {
+				registeredTools[toolName].disable();
+			}
 		}
 	}
 
