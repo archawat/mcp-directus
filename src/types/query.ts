@@ -71,19 +71,17 @@ export const fieldFilterSchema = z.record(
 	z.union([fieldFilterOperatorSchema, fieldValidationOperatorSchema]),
 ).describe('Record of field filters.');
 
-export const filterSchema = z.union([
-	z.interface({
-		get _or() {
-			return z.array(filterSchema).describe('Logical OR condition.');
-		},
-	}),
-	z.interface({
-		get _and() {
-			return z.array(filterSchema).describe('Logical AND condition.');
-		},
-	}),
-	fieldFilterSchema,
-]).describe('Recursive filter structure (including logical AND/OR).');
+export const filterSchema: z.ZodTypeAny = z.lazy(() =>
+	z.union([
+		z.object({
+			_or: z.array(filterSchema).describe('Logical OR condition.'),
+		}),
+		z.object({
+			_and: z.array(filterSchema).describe('Logical AND condition.'),
+		}),
+		fieldFilterSchema,
+	]),
+).describe('Recursive filter structure (including logical AND/OR).');
 
 export const deepQuerySchema = z.object({
 	_fields: nullableStringArray().describe('Fields for deep query.'),

@@ -1,18 +1,28 @@
-import * as z from 'zod';
+import { z } from 'zod';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { Directus } from '../directus.js';
+import type { Config } from '../config.js';
 import { getSchemaLazy } from '../utils/lazy-schema.js';
-import { defineTool } from '../utils/define.js';
 
-export default defineTool('read-collections', {
-	description:
-		'WARNING: Returns full schema (very large). Use list-collections for collection names only, or read-collection-schema for specific collections.',
-	inputSchema: z.object({
-		collections: z.array(z.string()).optional().describe('Specific collections to include (to reduce size)'),
-		fields_only: z.boolean().optional().default(false).describe('Return only field names, not full schema')
-	}),
-	handler: async (_, { collections, fields_only }) => {
+export function registerSchemaTools(server: McpServer, _directus: Directus, _config: Config) {
+	server.registerTool('directus_read_collections', {
+		title: 'Read Collections',
+		description:
+			'WARNING: Returns full schema (very large). Use directus_list_collections for collection names only, or directus_read_collection_schema for specific collections.',
+		inputSchema: {
+			collections: z.array(z.string()).optional().describe('Specific collections to include (to reduce size)'),
+			fields_only: z.boolean().optional().default(false).describe('Return only field names, not full schema'),
+		},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	}, async ({ collections, fields_only }) => {
 		const fullSchema = await getSchemaLazy();
 		let schema = fullSchema;
-		
+
 		// Filter to specific collections if requested
 		if (collections && collections.length > 0) {
 			schema = {};
@@ -22,7 +32,7 @@ export default defineTool('read-collections', {
 				}
 			}
 		}
-		
+
 		// Return only field names if requested
 		if (fields_only) {
 			const simplified: any = {};
@@ -33,14 +43,14 @@ export default defineTool('read-collections', {
 			}
 			schema = simplified;
 		}
-		
-		// Return compact JSON to save tokens  
+
+		// Return compact JSON to save tokens
 		const itemCount = Object.keys(schema).length;
-		return { 
-			content: [{ 
-				type: 'text', 
-				text: `Schema (${itemCount} collections):\n${JSON.stringify(schema)}` 
-			}] 
+		return {
+			content: [{
+				type: 'text',
+				text: `Schema (${itemCount} collections):\n${JSON.stringify(schema)}`,
+			}],
 		};
-	},
-});
+	});
+}

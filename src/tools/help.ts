@@ -1,43 +1,52 @@
-import * as z from 'zod';
-import { defineTool } from '../utils/define.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { Directus } from '../directus.js';
+import type { Config } from '../config.js';
 
-export const helpTool = defineTool('help-token-efficient', {
-	description: 'Get help on using tools efficiently to minimize token usage.',
-	inputSchema: z.object({}),
-	handler: async () => {
+export function registerHelpTools(server: McpServer, _directus: Directus, _config: Config) {
+	server.registerTool('directus_help', {
+		title: 'Help',
+		description: 'Get help on using tools efficiently to minimize token usage.',
+		inputSchema: {},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	}, async () => {
 		const guide = `
 TOKEN-EFFICIENT DIRECTUS WORKFLOW:
 
 1. DISCOVER (Lightweight - ~50 tokens each):
-   • list-collections → Get collection names
-   • count-items → Count items without fetching data
+   • directus_list_collections → Get collection names
+   • directus_count_items → Count items without fetching data
 
-2. EXPLORE (Targeted - ~200-500 tokens each):  
-   • get-item-summary → Get minimal data with essential fields only
-   • read-collection-schema → Get schema for specific collection
+2. EXPLORE (Targeted - ~200-500 tokens each):
+   • directus_get_item_summary → Get minimal data with essential fields only
+   • directus_read_collection_schema → Get schema for specific collection
 
 3. QUERY (Controlled - use limits!):
-   • read-items → DEFAULT LIMIT: 5 items (use 'limit' parameter)
+   • directus_read_items → DEFAULT LIMIT: 5 items (use 'limit' parameter)
    • Use 'fields' parameter to get only needed columns
    • Use 'offset' for pagination
 
 4. AVOID (Token-heavy):
-   • read-collections without filters (29k+ tokens)
-   • read-items without limit (10k+ tokens)
+   • directus_read_collections without filters (29k+ tokens)
+   • directus_read_items without limit (10k+ tokens)
 
 BEST PRACTICES:
-- Always use list-collections first to find collection names
-- Use count-items to plan pagination  
+- Always use directus_list_collections first to find collection names
+- Use directus_count_items to plan pagination
 - Specify 'fields' array to limit columns
 - Keep limits under 10-20 items per call
-- Use get-item-summary for quick overviews
+- Use directus_get_item_summary for quick overviews
 `;
 
 		return {
 			content: [{
-				type: 'text',
-				text: guide.trim()
-			}]
+				type: 'text' as const,
+				text: guide.trim(),
+			}],
 		};
-	},
-});
+	});
+}

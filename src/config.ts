@@ -17,8 +17,8 @@ const configSchema = z
 		),
 		DISABLE_TOOLS: z
 			.array(z.string())
-			.default(['delete-item'])
-			.describe("Disable specific tools by name. Defaults to ['delete-item']"),
+			.default(['directus_delete_item'])
+			.describe("Disable specific tools by name. Defaults to ['directus_delete_item']"),
 		ALLOW_SYSTEM_MODIFICATIONS: z
 			.string()
 			.optional()

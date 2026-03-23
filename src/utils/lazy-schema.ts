@@ -1,9 +1,22 @@
 import type { Directus } from '../directus.js';
-import { getGlobalDirectus, getGlobalConfig } from '../index.js';
+import type { Config } from '../config.js';
 import { fetchSchema } from './fetch-schema.js';
+
+// Internal references set via initSchema()
+let directusRef: Directus | null = null;
+let configRef: Config | undefined;
 
 // Cache for loaded schema
 let schemaCache: any = null;
+
+/**
+ * Initialize the lazy schema loader with directus client and config.
+ * Must be called before any schema access.
+ */
+export function initSchema(directus: Directus, config: Config) {
+	directusRef = directus;
+	configRef = config;
+}
 
 /**
  * Lazily load schema only when needed by tools
@@ -13,17 +26,14 @@ export async function getSchemaLazy() {
 		return schemaCache;
 	}
 
-	const directus = getGlobalDirectus() as Directus;
-	const config = getGlobalConfig();
-	
-	if (!directus) {
-		throw new Error('Directus client not initialized');
+	if (!directusRef) {
+		throw new Error('Schema not initialized. Call initSchema() first.');
 	}
 
-	console.log('Loading schema on-demand...');
-	schemaCache = await fetchSchema(directus, config);
-	console.log(`Schema cached: ${Object.keys(schemaCache).length} collections`);
-	
+	console.error('Loading schema on-demand...');
+	schemaCache = await fetchSchema(directusRef, configRef);
+	console.error(`Schema cached: ${Object.keys(schemaCache).length} collections`);
+
 	return schemaCache;
 }
 
@@ -32,11 +42,11 @@ export async function getSchemaLazy() {
  */
 export async function getCollectionSchema(collectionName: string) {
 	const schema = await getSchemaLazy();
-	
+
 	if (!schema[collectionName]) {
 		throw new Error(`Collection "${collectionName}" not found in schema. Available collections: ${Object.keys(schema).join(', ')}`);
 	}
-	
+
 	return schema[collectionName];
 }
 
@@ -53,6 +63,6 @@ export async function collectionExists(collectionName: string) {
  * This forces schema to be reloaded on next access, which includes updated permissions
  */
 export function invalidateSchemaCache() {
-	console.log('Schema cache invalidated - will reload on next access');
+	console.error('Schema cache invalidated - will reload on next access');
 	schemaCache = null;
 }
