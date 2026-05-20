@@ -11,6 +11,7 @@ import { registerItemTools } from './items.js';
 import { registerMarkdownTools } from './markdown.js';
 import { registerOperationTools } from './operations.js';
 import { registerPaginationTools } from './pagination.js';
+import { registerPresetTools } from './presets.js';
 import { registerPromptTools } from './prompts.js';
 import { registerRelationTools } from './relations.js';
 import { registerSchemaTools } from './schema.js';
@@ -43,6 +44,7 @@ export function registerAllTools(server: McpServer, directus: Directus, config: 
 
 	// Users & comments
 	registerUserTools(server, directus, config);
+	registerPresetTools(server, directus, config);
 	registerCommentTools(server, directus, config);
 
 	// Files & assets
