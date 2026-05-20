@@ -1,7 +1,7 @@
 {
 	"name": "@archawat/mcp-directus",
 	"type": "module",
-	"version": "2.0.1",
+	"version": "2.0.2",
 	"packageManager": "pnpm@10.4.1",
 	"description": "Model Context Protocol server for Directus projects.",
 	"contributors": [
