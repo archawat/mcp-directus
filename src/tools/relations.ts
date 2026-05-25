@@ -1,4 +1,5 @@
 import {
+	createField,
 	createRelation,
 	deleteRelation,
 	readRelation,
@@ -9,6 +10,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as z from 'zod';
 import type { Config } from '../config.js';
 import type { Directus } from '../directus.js';
+import { invalidateSchemaCache } from '../utils/lazy-schema.js';
 import {
 	formatErrorResponse,
 	formatSuccessResponse,
@@ -73,12 +75,12 @@ export function registerRelationTools(server: McpServer, directus: Directus, _co
 
 	server.registerTool('directus_create_relation', {
 		title: 'Create Relation',
-		description: 'Create a new relation between collections. Use this after creating relational fields. IMPORTANT: For M2O relations, specify one_field to create the corresponding O2M field on the parent table (recommended).',
+		description: 'Create a new relation between collections. Use this after creating relational fields. IMPORTANT: For M2O relations, specify one_field to create the corresponding O2M alias field on the parent table (recommended). When one_field + one_collection are both provided, this tool will also POST /fields to create the alias on the parent — mirroring the two-step sequence the Directus admin UI performs.',
 		inputSchema: {
 			many_collection: z.string().describe('The "many" side collection name (child table)'),
 			many_field: z.string().describe('The foreign key field in the "many" collection (M2O field on child)'),
 			one_collection: z.string().optional().describe('The "one" side collection name (parent table for M2O/O2M)'),
-			one_field: z.string().optional().describe('RECOMMENDED: The alias field name to create on the parent table (O2M field). If specified, creates a virtual field on the parent showing related children. Example: "products" on a category would show all products in that category.'),
+			one_field: z.string().optional().describe('RECOMMENDED: The alias field name to create on the parent table (O2M/M2M/M2A alias). If specified together with one_collection, the tool will (a) create the directus_relations row, then (b) create the alias directus_fields row on the parent collection with the correct meta.special and meta.interface — exactly what Directus admin UI does in two API calls. Example: "products" on a category would show all products in that category.'),
 			one_collection_field: z.string().optional().describe('Field to store collection name (for M2A/polymorphic)'),
 			one_allowed_collections: z.array(z.string()).optional().describe('Allowed collections (for M2A/polymorphic)'),
 			junction_field: z.string().optional().describe('Junction field (for M2M)'),
@@ -145,12 +147,44 @@ export function registerRelationTools(server: McpServer, directus: Directus, _co
 			const result = await directus.request(createRelation(relationData));
 
 			// Build informative message
-			let message = `Relation created: ${input.many_collection}.${input.many_field} -> ${input.one_collection || 'any'}`;
-			if (input.one_field) {
-				message += `\nO2M field created on parent: ${input.one_collection}.${input.one_field}`;
+			let message = `Relation row created: ${input.many_collection}.${input.many_field} -> ${input.one_collection || 'any'}`;
+
+			// POST /relations alone does NOT create the alias directus_fields row on the parent.
+			// The Directus admin UI makes a separate POST /fields call for the alias — replicate that here.
+			if (input.one_field && input.one_collection) {
+				const isM2A = !!input.one_collection_field || !!input.one_allowed_collections;
+				const isM2M = !isM2A && !!input.junction_field;
+				const aliasSpecial = isM2A ? 'm2a' : (isM2M ? 'm2m' : 'o2m');
+				const aliasInterface = isM2A ? 'list-m2a' : (isM2M ? 'list-m2m' : 'list-o2m');
+
+				try {
+					await directus.request(createField(input.one_collection, {
+						field: input.one_field,
+						type: 'alias',
+						meta: {
+							special: [aliasSpecial],
+							interface: aliasInterface,
+							options: { enableCreate: true, enableSelect: true },
+							display: null,
+							display_options: null,
+							readonly: false,
+							hidden: false,
+							width: 'full',
+							required: false,
+						},
+					} as any));
+
+					invalidateSchemaCache();
+					message += `\nAlias field created on parent: ${input.one_collection}.${input.one_field} (special: ["${aliasSpecial}"], interface: "${aliasInterface}")`;
+				}
+				catch (error: any) {
+					const errMsg = error?.message || String(error);
+					message += `\nWARNING: Relation row created successfully, but the alias field on ${input.one_collection}.${input.one_field} was NOT created: ${errMsg}`;
+					message += `\nThe alias may already exist, or you may need to create it manually via directus_create_field with type: "alias", meta.special: ["${aliasSpecial}"], meta.interface: "${aliasInterface}".`;
+				}
 			}
 			else if (input.one_collection) {
-				message += `\nNote: No O2M field created on parent table. To add it later, update the relation with one_field parameter.`;
+				message += '\nNote: No alias field created on parent table. Pass one_field to auto-create the alias, or call directus_create_field separately.';
 			}
 
 			return formatSuccessResponse(result, message);

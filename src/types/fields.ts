@@ -3,6 +3,7 @@ import {
 	nullableNumber,
 	nullableRecord,
 	nullableString,
+	nullableStringArray,
 	optionalBoolean,
 	optionalNumber,
 	optionalString,
@@ -42,6 +43,7 @@ export const FieldMetaSchema = z.object({
 	validation: nullableRecord().describe('Validation rule object.'),
 	validation_message: nullableString().describe('Validation error message.'),
 	conditions: z.array(z.record(z.string(), z.any())).describe('Conditions to display the field.').nullable().optional(),
+	special: nullableStringArray().describe('Special markers — e.g. ["o2m"], ["m2m"], ["m2a"], ["user-created"], ["user-updated"], ["date-created"], ["date-updated"], ["uuid"], ["hash"], ["json"], ["csv"], ["cast-json"], ["cast-boolean"], ["no-data"], ["auto-increment"]. Required for relational alias fields and auto-managed fields.'),
 }).partial().describe('Directus specific metadata and configuration for a field (subset for creation/update).');
 
 export const CreateFieldDataSchema = z.object({
